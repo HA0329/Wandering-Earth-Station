@@ -1,0 +1,18 @@
+# ---- 操作系统 ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---- 编辑器 / IDE ----
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---- 日志与临时文件 ----
+*.log
+node_modules/
+
+# ---- 本地测试截图（如需保留可删除下面两行）----
+standalone_check.png

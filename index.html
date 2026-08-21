@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>流浪地球 · 领航员国际空间站</title>
+<style>
+  :root { --accent:#ffb347; --cyan:#5fd4ff; --panel:rgba(8,14,26,.82); }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#000;
+    font-family:"Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; color:#dfe8f5; }
+  #c { display:block; }
+  .hud { position:fixed; z-index:10; pointer-events:none; }
+
+  /* ---- 标题 ---- */
+  #title { top:20px; left:24px; }
+  #title h1 { font-size:24px; letter-spacing:5px; font-weight:700; color:#fff;
+    text-shadow:0 0 20px rgba(110,180,255,.5); }
+  #title .sub { margin-top:5px; font-size:11px; letter-spacing:2.5px; color:#8fa6c4; }
+  #title .badges { margin-top:9px; display:flex; gap:6px; }
+  #title .badge { padding:2px 9px; font-size:10px; letter-spacing:1px; color:#ffd9a0;
+    border:1px solid rgba(255,179,71,.5); border-radius:2px; background:rgba(20,26,40,.5); }
+
+  /* ---- 构型信息 ---- */
+  #info { left:24px; bottom:22px; width:300px; background:var(--panel);
+    border:1px solid rgba(120,160,220,.25); border-radius:6px; padding:13px 15px;
+    box-shadow:0 0 24px rgba(0,0,0,.6); }
+  #info h2 { font-size:12px; letter-spacing:3px; color:var(--accent); margin-bottom:8px; font-weight:600; }
+  #info ul { list-style:none; font-size:11.5px; line-height:1.85; color:#c3d2e8; }
+  #info ul li::before { content:"◆ "; color:var(--accent); font-size:8px; }
+  #info .note { margin-top:9px; font-size:10px; color:#6d82a3; line-height:1.65;
+    border-top:1px dashed rgba(120,160,220,.25); padding-top:7px; }
+
+  /* ---- 遥测 ---- */
+  #tele { left:24px; top:132px; font-family:Consolas,"Courier New",monospace; font-size:11px;
+    color:#7fd4a0; line-height:1.7; text-shadow:0 0 8px rgba(60,220,140,.35); }
+  #tele b { color:#aef0c8; font-weight:600; }
+
+  /* ---- 控制 ---- */
+  #ui { right:22px; top:20px; display:flex; flex-direction:column; gap:7px; align-items:flex-end; }
+  .btn { pointer-events:auto; cursor:pointer; background:var(--panel);
+    border:1px solid rgba(120,160,220,.3); color:#cfe0f5; font-size:12px; letter-spacing:2px;
+    padding:7px 14px; border-radius:4px; transition:all .15s; user-select:none;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); }
+  .btn:hover { border-color:var(--accent); color:#fff; }
+  .btn.on { background:rgba(255,179,71,.16); border-color:var(--accent); color:var(--accent);
+    box-shadow:0 0 14px rgba(255,179,71,.22); }
+  #spdwrap { display:flex; align-items:center; gap:8px; font-size:11px; color:#8fa6c4;
+    letter-spacing:1px; background:var(--panel); border:1px solid rgba(120,160,220,.3);
+    padding:7px 12px; border-radius:4px; }
+  input[type=range] { width:104px; accent-color:var(--accent); }
+
+  #hint { right:22px; bottom:22px; font-size:11px; letter-spacing:1px; color:#6d82a3;
+    text-align:right; line-height:1.8; }
+  #err { display:none; position:fixed; inset:0; z-index:99; background:#0a0e16; color:#ff9a9a;
+    font-size:14px; padding:40px; font-family:Consolas,monospace; white-space:pre-wrap; }
+  #vignette { position:fixed; inset:0; z-index:5; pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,10,.42) 100%); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+<div id="err"></div>
+
+<div class="hud" id="title">
+  <h1>领航员国际空间站</h1>
+  <div class="sub">THE WANDERING EARTH · NAVIGATOR INTERNATIONAL SPACE STATION</div>
+  <div class="badges">
+    <span class="badge">程序化重建 · 非官方</span>
+    <span class="badge">本地离线</span>
+  </div>
+</div>
+
+<div class="hud" id="tele">
+  FPS <b id="tFps">--</b><br>
+  环舱自转 <b id="tSpin">--</b> rad/s<br>
+  视距 <b id="tDist">--</b> km
+</div>
+
+<div class="hud" id="ui">
+  <div class="btn on" id="bRotate">自动环绕</div>
+  <div class="btn on" id="bSpin">环舱自转</div>
+  <div class="btn on" id="bEngine">引擎喷焰</div>
+  <div class="btn on" id="bBloom">辉光后期</div>
+  <div class="btn" id="bWire">线框模式</div>
+  <div class="btn" id="bReset">重置视角</div>
+  <div class="btn" id="bShot">截图保存</div>
+  <div id="spdwrap">自转速度 <input type="range" id="spd" min="0" max="3" step="0.1" value="1"></div>
+</div>
+
+<div class="hud" id="info">
+  <h2>构 型 说 明（参照电影设定）</h2>
+  <ul>
+    <li>旋转环舱 — 人工重力居住环，双层环壁 + 舷窗带</li>
+    <li>桁架辐条 ×4 — 主梁 / 横撑 / 斜撑 / 拉索</li>
+    <li>中央轴体 — 生活舱段、停靠口与姿态推进器</li>
+    <li>前端指挥舱 — 环形大窗，MOSS 监视系统</li>
+    <li>尾部主推进发动机 ×3 + 姿态推进器</li>
+    <li>太阳翼阵列与散热鳍片</li>
+  </ul>
+  <div class="note">依据《流浪地球》领航员国际空间站公开设定资料
+    （百度百科 / 机核美术设定 / MORE VFX 视效解析）程序化重建，非官方资产。
+    鼠标拖拽旋转 · 滚轮缩放 · 右键平移。</div>
+</div>
+
+<div class="hud" id="hint">拖拽旋转 ／ 滚轮缩放 ／ 右键平移</div>
+
+<script src="./lib/three.min.js"></script>
+<script src="./lib/OrbitControls.js"></script>
+<script src="./lib/Pass.js"></script>
+<script src="./lib/ShaderPass.js"></script>
+<script src="./lib/CopyShader.js"></script>
+<script src="./lib/LuminosityHighPassShader.js"></script>
+<script src="./lib/UnrealBloomPass.js"></script>
+<script src="./lib/RenderPass.js"></script>
+<script src="./lib/EffectComposer.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
